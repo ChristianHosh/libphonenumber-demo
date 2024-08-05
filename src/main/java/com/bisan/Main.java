@@ -7,8 +7,7 @@ import com.google.i18n.phonenumbers.geocoding.PhoneNumberOfflineGeocoder;
 
 import java.util.*;
 
-import static com.bisan.Statics.LANDLINE_NUMBERS;
-import static com.bisan.Statics.MOBILE_NUMBERS;
+import static com.bisan.Statics.*;
 
 public class Main {
 
@@ -19,7 +18,7 @@ public class Main {
   public static final String CMD_EXIT = "exit";
 
   public static void main(String[] args) {
-    for (Map.Entry<String, List<String>> entry : Map.of("MOBILE", MOBILE_NUMBERS, "LANDLINE", LANDLINE_NUMBERS).entrySet()) {
+    for (Map.Entry<String, List<String>> entry : Map.of("FIJI", FIJI_NUMBERS).entrySet()) {
       int failed = 0;
       int total = 0;
       int success = 0;
@@ -93,6 +92,11 @@ public class Main {
     String number = args[0];
 
     System.out.println("[" + index + "] NUMBER: " + number);
+    BPhone phone = new BPhone(number);
+    handle(phone);
+    
+    if (true)
+      return phone.isValid();
 
     String countryCode = getCountryCode(number);
     String regionCode = PHONE_NUMBER_UTIL.getRegionCodeForCountryCode(Integer.parseInt(countryCode));
@@ -109,19 +113,23 @@ public class Main {
       System.out.println("region:\t\t\t\t\t\t" + PHONE_NUMBER_UTIL.getRegionCodeForNumber(phoneNumber));
       System.out.println("is possible number:\t\t\t" + PHONE_NUMBER_UTIL.isPossibleNumber(phoneNumber));
       System.out.println("is valid number:\t\t\t" + isValid);
-      System.out.println("number type:\t\t\t\t" + PHONE_NUMBER_UTIL.getNumberType(phoneNumber));
-      System.out.println("region:\t\t\t\t\t\t" + OFFLINE_GEOCODER.getDescriptionForNumber(phoneNumber, Locale.ENGLISH));
+      System.out.println("number type:\t\t\t\t" +     PHONE_NUMBER_UTIL.getNumberType(phoneNumber));
+      System.out.println("region:\t\t\t\t\t\t" +      OFFLINE_GEOCODER.getDescriptionForNumber(phoneNumber, Locale.ENGLISH));
       System.out.println("FORMATTING RESULTS");
-      System.out.println("E164:\t\t\t\t\t\t" + PHONE_NUMBER_UTIL.format(phoneNumber, PhoneNumberUtil.PhoneNumberFormat.E164));
-      System.out.println("INTERNATIONAL:\t\t\t\t" + PHONE_NUMBER_UTIL.format(phoneNumber, PhoneNumberUtil.PhoneNumberFormat.INTERNATIONAL));
-      System.out.println("NATIONAL:\t\t\t\t\t" + PHONE_NUMBER_UTIL.format(phoneNumber, PhoneNumberUtil.PhoneNumberFormat.NATIONAL));
-      System.out.println("RFC3966:\t\t\t\t\t" + PHONE_NUMBER_UTIL.format(phoneNumber, PhoneNumberUtil.PhoneNumberFormat.RFC3966));
+      System.out.println("E164:\t\t\t\t\t\t" +        PHONE_NUMBER_UTIL.format(phoneNumber, PhoneNumberUtil.PhoneNumberFormat.E164));
+      System.out.println("INTERNATIONAL:\t\t\t\t" +   PHONE_NUMBER_UTIL.format(phoneNumber, PhoneNumberUtil.PhoneNumberFormat.INTERNATIONAL));
+      System.out.println("NATIONAL:\t\t\t\t\t" +      PHONE_NUMBER_UTIL.format(phoneNumber, PhoneNumberUtil.PhoneNumberFormat.NATIONAL));
+      System.out.println("RFC3966:\t\t\t\t\t" +       PHONE_NUMBER_UTIL.format(phoneNumber, PhoneNumberUtil.PhoneNumberFormat.RFC3966));
 
     } catch (NumberParseException e) {
       System.err.println("error parsing number: " + number);
       throw e;
     }
     return isValid;
+  }
+
+  private static void handle(BPhone phone) {  
+    
   }
 
   private static String getCountryCode(String number) {
