@@ -6,7 +6,6 @@ import com.google.i18n.phonenumbers.Phonenumber;
 import com.google.i18n.phonenumbers.geocoding.PhoneNumberOfflineGeocoder;
 
 import java.util.Locale;
-import java.util.Objects;
 
 public class BPhone {
 
@@ -15,108 +14,133 @@ public class BPhone {
 
   private final Phonenumber.PhoneNumber phoneNumber;
   private final String numberString;
+  private final String areaCode;
+  private final String extension;
   private final String countryCode;
   private final String regionCode;
-  private boolean valid;
+  
+  private String rawNumberString;
 
-  public BPhone(String phoneNumber) {
-    Phonenumber.PhoneNumber tempPhoneNumber;
+  public BPhone(String numberString) throws NumberParseException {
+    this.numberString = numberString;
+    this.extension = parseExtension(numberString);
 
-    this.numberString = phoneNumber;
-    this.countryCode = parseCountryCode();
-    this.regionCode = PHONE_NUMBER_UTIL.getRegionCodeForCountryCode(Integer.parseInt(this.countryCode));
-
-    try {
-      tempPhoneNumber = parsePhoneNumber();
-      valid = true;
-    } catch (NumberParseException e) {
-      tempPhoneNumber = null;
-      valid = false;
+    this.rawNumberString = numberString.replaceAll("[-()]", "");
+    int extensionIndex = this.rawNumberString.indexOf(":");
+    if (extensionIndex > 0) {
+      this.rawNumberString = this.rawNumberString.substring(0, extensionIndex);
     }
 
-    this.phoneNumber = tempPhoneNumber;
-  }
+    this.countryCode = parseCountryCode(numberString);
+    this.regionCode = parseRegionCode(this.countryCode);
 
-  private Phonenumber.PhoneNumber parsePhoneNumber() throws NumberParseException {
-    return PHONE_NUMBER_UTIL.parse(this.numberString, this.regionCode);
-  }
-
-  private String parseCountryCode() {
-    int firstIndex = this.numberString.indexOf("(");
-    int lastIndex = this.numberString.indexOf(")");
-    if (firstIndex == -1 || lastIndex == -1) {
-      throw new IllegalArgumentException("country code must be between parentheses");
-    }
-
-    return this.numberString.substring(firstIndex + 1, lastIndex);
-  }
-
-  public boolean isValid() {
-    return valid && PHONE_NUMBER_UTIL.isValidNumber(this.phoneNumber);
-  }
-
-  public boolean isPossibleNumber() {
-    return valid && PHONE_NUMBER_UTIL.isPossibleNumber(this.phoneNumber);
-  }
-
-  public PhoneNumberUtil.PhoneNumberType getType() {
-    return this.phoneNumber == null ? null : PHONE_NUMBER_UTIL.getNumberType(this.phoneNumber);
-  }
-
-  public String getCountryName() {
-    return getCountryName(Locale.getDefault());
-  }
-
-  public String getCountryName(Locale locale) {
-    return this.phoneNumber == null ? null : OFFLINE_GEOCODER.getDescriptionForNumber(this.phoneNumber, locale);
+    this.phoneNumber = PHONE_NUMBER_UTIL.parse(this.rawNumberString, regionCode);
+    this.areaCode = PhoneNumberUtil.PhoneNumberType.FIXED_LINE.equals(this.getType()) ? parseAreaCode(this.phoneNumber) : "";
   }
 
   public Phonenumber.PhoneNumber getPhoneNumber() {
-    return this.phoneNumber;
+    return phoneNumber;
   }
 
   public String getNumberString() {
-    return this.numberString;
+    return numberString;
+  }
+
+  public String getRawNumberString() {
+    return rawNumberString;
+  }
+
+  public String getAreaCode() {
+    return areaCode;
+  }
+
+  public String getExtension() {
+    return extension;
+  }
+
+  public boolean isValid() {
+    return PHONE_NUMBER_UTIL.isValidNumber(phoneNumber);
+  }
+
+  public String getInternationalString() {
+    return PHONE_NUMBER_UTIL.format(phoneNumber, PhoneNumberUtil.PhoneNumberFormat.INTERNATIONAL);
+  }
+
+  public String getNationalString() {
+    return PHONE_NUMBER_UTIL.format(phoneNumber, PhoneNumberUtil.PhoneNumberFormat.NATIONAL);
+  }
+
+  public String getRFC3966String() {
+    return PHONE_NUMBER_UTIL.format(phoneNumber, PhoneNumberUtil.PhoneNumberFormat.RFC3966);
+  }
+
+  public String getE164String() {
+    return PHONE_NUMBER_UTIL.format(phoneNumber, PhoneNumberUtil.PhoneNumberFormat.E164);
+  }
+
+  public PhoneNumberUtil.PhoneNumberType getType() {
+    return PHONE_NUMBER_UTIL.getNumberType(phoneNumber);
   }
 
   public String getCountryCode() {
     return this.countryCode;
   }
-
+  
   public String getRegionCode() {
     return this.regionCode;
   }
 
-  public String getInternationalString() {
-    return this.phoneNumber == null ? null : PHONE_NUMBER_UTIL.format(this.phoneNumber, PhoneNumberUtil.PhoneNumberFormat.INTERNATIONAL);
+  public String getGeocodedRegionCode() {
+    String regionCode = OFFLINE_GEOCODER.getDescriptionForNumber(phoneNumber, Locale.ENGLISH);
+    return regionCode != null ? regionCode : "";
+  }
+  
+
+  /**
+   * returns the region code for the given country code
+   *
+   * @param countryCode the country code to get the region code for
+   * @return the region code for the given country code or null if the country code is invalid
+   */
+  private static String parseRegionCode(String countryCode) {
+    try {
+      int regionCodeInt = Integer.parseInt(countryCode); // for example 972, 970, 1,...
+      return PHONE_NUMBER_UTIL.getRegionCodeForCountryCode(regionCodeInt);
+    } catch (NumberFormatException e) {
+      return null;
+    }
   }
 
-  public String getNationalString() {
-    return this.phoneNumber == null ? null : PHONE_NUMBER_UTIL.format(this.phoneNumber, PhoneNumberUtil.PhoneNumberFormat.NATIONAL);
+  /**
+   * returns the country code in the given raw number string
+   *
+   * @param number the raw number string to extract the country code from
+   * @return the country code in the given raw number string
+   */
+  private static String parseCountryCode(String number) {
+    int firstIndex = number.indexOf("(");
+    int lastIndex = number.indexOf(")");
+    if (firstIndex == -1 || lastIndex == -1) {
+      return number;
+    }
+    return number.substring(firstIndex + 1, lastIndex);
   }
 
-  public String getRFC3966String() {
-    return this.phoneNumber == null ? null : PHONE_NUMBER_UTIL.format(this.phoneNumber, PhoneNumberUtil.PhoneNumberFormat.RFC3966);
+  private static String parseAreaCode(Phonenumber.PhoneNumber number) {
+    // for example for number 022775447 -> area code = 2
+    
+    int areaCodeLength = PHONE_NUMBER_UTIL.getLengthOfNationalDestinationCode(number);
+    String nationalSignificantNumber = PHONE_NUMBER_UTIL.getNationalSignificantNumber(number);
+
+    return nationalSignificantNumber.substring(0, areaCodeLength);
   }
 
-  public String getE164String() {
-    return this.phoneNumber == null ? null : PHONE_NUMBER_UTIL.format(this.phoneNumber, PhoneNumberUtil.PhoneNumberFormat.E164);
-  }
+  private String parseExtension(String numberString) {
+    int index = numberString.indexOf(":");
+    if (index == -1) {
+      return "";
+    }
 
-  @Override
-  public String toString() {
-    return this.getInternationalString();
-  }
-
-  @Override
-  public boolean equals(Object obj) {
-    if (obj == this) return true;
-    if (!(obj instanceof BPhone)) return false;
-    return Objects.equals(this.phoneNumber, ((BPhone) obj).phoneNumber);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hashCode(this.phoneNumber);
+    return numberString.substring(index + 1);
   }
 }
