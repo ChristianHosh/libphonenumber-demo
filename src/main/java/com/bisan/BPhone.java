@@ -13,37 +13,49 @@ public class BPhone {
   public static final PhoneNumberOfflineGeocoder OFFLINE_GEOCODER = PhoneNumberOfflineGeocoder.getInstance();
 
   private final Phonenumber.PhoneNumber phoneNumber;
-  private final String numberString;
   private final String areaCode;
   private final String extension;
-  private final String countryCode;
-  private final String regionCode;
-  
-  private String rawNumberString;
+  private final String rawNumberString;
+
 
   public BPhone(String numberString) throws NumberParseException {
-    this.numberString = numberString;
-    this.extension = parseExtension(numberString);
+    Phonenumber.PhoneNumber tempPhoneNumber;
+    
+    String[] numberExtension = parseExtension(numberString);
+    numberString = numberExtension[0];
+    this.extension = numberExtension[1];
 
-    this.rawNumberString = numberString.replaceAll("[-()]", "");
-    int extensionIndex = this.rawNumberString.indexOf(":");
-    if (extensionIndex > 0) {
-      this.rawNumberString = this.rawNumberString.substring(0, extensionIndex);
+    this.rawNumberString = numberString
+        .replaceAll("\\D", "")  // clean symbol
+        .replaceAll("^0+", ""); // strip leading zeros
+
+    String countryCode = parseCountryCode(numberString);
+    String defaultRegion = Locale.getDefault().getCountry();
+    
+    String regionCode = countryCode.equals(numberString) 
+        ? defaultRegion    // if no country code between parentheses then use default country
+        : parseRegionCode(countryCode);  // use provided country code
+    
+    try {
+      // if it fails parsing fallback to parsing with a plus sign (for international numbers)
+      tempPhoneNumber = PHONE_NUMBER_UTIL.parse(this.rawNumberString, regionCode);
+      System.out.println("falling back 1");
+    } catch (NumberParseException e) {
+      try {
+        tempPhoneNumber = PHONE_NUMBER_UTIL.parse("+" + this.rawNumberString, regionCode);
+        System.out.println("falling back 2");
+      } catch (NumberParseException e1) {
+        tempPhoneNumber = PHONE_NUMBER_UTIL.parse("+" + this.rawNumberString, defaultRegion);
+        System.out.println("falling back 3");
+      }
     }
 
-    this.countryCode = parseCountryCode(numberString);
-    this.regionCode = parseRegionCode(this.countryCode);
-
-    this.phoneNumber = PHONE_NUMBER_UTIL.parse(this.rawNumberString, regionCode);
+    this.phoneNumber = tempPhoneNumber;
     this.areaCode = PhoneNumberUtil.PhoneNumberType.FIXED_LINE.equals(this.getType()) ? parseAreaCode(this.phoneNumber) : "";
   }
 
   public Phonenumber.PhoneNumber getPhoneNumber() {
     return phoneNumber;
-  }
-
-  public String getNumberString() {
-    return numberString;
   }
 
   public String getRawNumberString() {
@@ -82,19 +94,15 @@ public class BPhone {
     return PHONE_NUMBER_UTIL.getNumberType(phoneNumber);
   }
 
-  public String getCountryCode() {
-    return this.countryCode;
-  }
-  
-  public String getRegionCode() {
-    return this.regionCode;
+  public int getCountryCode() {
+    return phoneNumber.getCountryCode();
   }
 
   public String getGeocodedRegionCode() {
     String regionCode = OFFLINE_GEOCODER.getDescriptionForNumber(phoneNumber, Locale.ENGLISH);
     return regionCode != null ? regionCode : "";
   }
-  
+
 
   /**
    * returns the region code for the given country code
@@ -123,24 +131,25 @@ public class BPhone {
     if (firstIndex == -1 || lastIndex == -1) {
       return number;
     }
-    return number.substring(firstIndex + 1, lastIndex);
+    String countryCode = number.substring(firstIndex + 1, lastIndex);
+    return countryCode.length() == 3 ? countryCode : number;
   }
 
   private static String parseAreaCode(Phonenumber.PhoneNumber number) {
     // for example for number 022775447 -> area code = 2
-    
+
     int areaCodeLength = PHONE_NUMBER_UTIL.getLengthOfNationalDestinationCode(number);
     String nationalSignificantNumber = PHONE_NUMBER_UTIL.getNationalSignificantNumber(number);
 
     return nationalSignificantNumber.substring(0, areaCodeLength);
   }
 
-  private String parseExtension(String numberString) {
+  private String[] parseExtension(String numberString) {
     int index = numberString.indexOf(":");
     if (index == -1) {
-      return "";
+      return new String[]{numberString, ""};
     }
 
-    return numberString.substring(index + 1);
+    return new String[]{numberString.substring(0, index), numberString.substring(index + 1)};
   }
 }

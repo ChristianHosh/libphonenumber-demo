@@ -2,14 +2,16 @@ package com.bisan;
 
 import com.google.i18n.phonenumbers.NumberParseException;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
-import static com.bisan.Statics.*;
+import static com.bisan.Statics.FIJI_NEWZELAND_VENDORS;
 
 public class Main {
 
   public static void main(String[] args) {
-    for (Map.Entry<String, List<String>> entry : Map.of("PS", LANDLINE_NUMBERS).entrySet()) {
+    for (Map.Entry<String, List<String>> entry : Map.of("PS", FIJI_NEWZELAND_VENDORS).entrySet()) {
       int failed = 0;
       int total = 0;
       int success = 0;
@@ -24,7 +26,6 @@ public class Main {
         String[] asArgs = new String[]{number};
         boolean isValid;
         try {
-          System.out.println("LIST --- " + entry.getKey());
           isValid = parse(asArgs, i);
           success++;
         } catch (Exception e) {
@@ -65,9 +66,8 @@ public class Main {
       isValid = bPhone.isValid();
 
       System.out.println("bPhone.getRawNumberString()     = " + bPhone.getRawNumberString());
-      System.out.println("bPhone.getNumberString()        = " + bPhone.getNumberString());
       System.out.println("bPhone.getAreaCode()            = " + bPhone.getAreaCode());
-      System.out.println("bPhone.getRegionCode()          = " + bPhone.getRegionCode());
+      System.out.println("bPhone.getRegionCode()          = " + BPhone.PHONE_NUMBER_UTIL.getRegionCodeForNumber(bPhone.getPhoneNumber()));
       System.out.println("bPhone.getCountryCode()         = " + bPhone.getCountryCode());
       System.out.println("bPhone.getExtension()           = " + bPhone.getExtension());
       System.out.println("bPhone.getType()                = " + bPhone.getType());
